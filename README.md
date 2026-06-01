@@ -1,6 +1,6 @@
 # Euro Equity Intelligence
 
-Euro Equity Intelligence is a Python 3.11 screening tool for a small universe of European equities. It fetches market and financial data from `yfinance`, calculates a set of valuation and quality metrics, applies a transparent 0-100 heuristic score, and exposes the results through a CLI and FastAPI API.
+Euro Equity Intelligence is a Python 3.11 screening tool for a small universe of European equities. It fetches market and financial data from `yfinance`, calculates a set of valuation and quality metrics, applies a transparent 0-100 heuristic score for non-financial companies, and exposes the results through a CLI and FastAPI API.
 
 The project is intended for financial data exploration and code review. It is not an investment engine, trading system, or recommendation service.
 
@@ -15,6 +15,8 @@ The current universe contains 20 large European companies across Germany, France
 - cash flow data
 
 Each response includes company metadata, a market snapshot, calculated metrics, a score, and data quality information.
+
+Banks and insurers are identified by sector and are not scored by the default model. They can still be returned by company endpoints and optional screen output with `score_status = "not_scored_financials"`.
 
 ## Architecture
 
@@ -53,7 +55,7 @@ If a metric cannot be calculated from available data, the value is returned as `
 
 ## Scoring Methodology
 
-Each metric is converted into a 0-100 component score and combined with fixed weights:
+For non-financial companies, each metric is converted into a 0-100 component score and combined with fixed weights:
 
 | Metric | Weight | Direction | Heuristic Range |
 | --- | ---: | --- | --- |
@@ -69,6 +71,8 @@ The ranges are heuristic demo ranges chosen to make companies comparable inside 
 
 Missing metrics receive a neutral component score of `50`. The response includes `data_completeness`, so users can separate complete results from sparse data.
 
+Financial companies are not scored by this model because bank and insurance analysis requires sector-specific metrics.
+
 Example score block:
 
 ```json
@@ -77,9 +81,24 @@ Example score block:
     "score": 76.45,
     "data_completeness": 1.0
   },
+  "score_status": "scored",
   "data_quality": {
     "missing_metrics": [],
     "warnings": []
+  }
+}
+```
+
+Financial company score block:
+
+```json
+{
+  "score": null,
+  "score_status": "not_scored_financials",
+  "data_quality": {
+    "warnings": [
+      "Financial companies are not scored by the default model because bank/insurance analysis requires sector-specific metrics."
+    ]
   }
 }
 ```
@@ -127,6 +146,12 @@ Filter screen results:
 python3 run_screen.py --min-score 70 --limit 10
 ```
 
+Include unscored financial companies in CLI output:
+
+```bash
+python3 run_screen.py --include-unscored
+```
+
 ## API
 
 Start the API:
@@ -155,6 +180,7 @@ Optional `/screen` query parameters:
 | --- | --- | --- |
 | `limit` | integer | Number of results, default `20`, max `50` |
 | `min_score` | float | Only return companies with score >= this value |
+| `include_unscored` | boolean | Include financial companies that are not scored by the default model |
 
 Example:
 
@@ -162,14 +188,20 @@ Example:
 curl "http://127.0.0.1:8000/screen?limit=5&min_score=60"
 ```
 
+Include unscored financial companies:
+
+```bash
+curl "http://127.0.0.1:8000/screen?include_unscored=true"
+```
+
 ## Example Output
 
 CLI table shape:
 
 ```text
-ticker  name          country      score  data revenue_growth ebitda_margin net_debt_ebitda    pe ev_ebitda    roe fcf_yield error
-ASML.AS ASML Holding  Netherlands  76.45  1.00          14.0%         33.0%            -0.40 38.20     25.10  51.0%      2.5%  None
-SAP.DE  SAP           Germany      68.20  0.86           9.0%         28.0%             0.70 31.10     18.40  19.0%      None  None
+ticker  name          country      score  status  data revenue_growth ebitda_margin net_debt_ebitda    pe ev_ebitda    roe fcf_yield error
+ASML.AS ASML Holding  Netherlands  76.45  scored  1.00          14.0%         33.0%            -0.40 38.20     25.10  51.0%      2.5%  None
+SAP.DE  SAP           Germany      68.20  scored  0.86           9.0%         28.0%             0.70 31.10     18.40  19.0%      None  None
 ```
 
 Single company API response shape:
@@ -202,6 +234,7 @@ Single company API response shape:
     "score": 76.45,
     "data_completeness": 1.0
   },
+  "score_status": "scored",
   "data_quality": {
     "missing_metrics": [],
     "warnings": []
@@ -226,11 +259,11 @@ Store fresh captures in `docs/screenshots/`.
 ## Limitations
 
 - `yfinance` data quality and availability vary by ticker, exchange, and statement field.
-- The scoring model is a simplified heuristic, not a valuation model.
+- The scoring model is a simplified heuristic for non-financial companies, not a valuation model.
 - The universe is fixed at 20 European companies.
 - The project does not include backtesting.
 - Scores are not sector-relative yet.
-- Financial companies require different metrics than industrial, consumer, energy, or software companies. Bank and insurer metrics such as capital ratios, net interest margin, combined ratio, or book-value-based valuation are not implemented.
+- Financial companies are not scored by default. Bank and insurer analysis requires metrics such as capital ratios, net interest margin, combined ratio, or book-value-based valuation, which are not implemented yet.
 
 ## Roadmap
 

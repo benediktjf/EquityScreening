@@ -34,6 +34,7 @@
     },
     "data_completeness": 1.0
   },
+  "score_status": "scored",
   "data_quality": {
     "missing_metrics": [],
     "data_completeness": 1.0,

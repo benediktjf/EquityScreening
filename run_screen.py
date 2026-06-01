@@ -16,6 +16,7 @@ def main() -> None:
     parser.add_argument("--ticker", help="Analyze one ticker from the universe, e.g. ASML.AS")
     parser.add_argument("--limit", type=int, default=20, help="Maximum number of rows to display")
     parser.add_argument("--min-score", type=float, default=None, help="Only show companies at or above this score")
+    parser.add_argument("--include-unscored", action="store_true", help="Include unscored financial companies")
     parser.add_argument("--json", action="store_true", help="Print raw JSON instead of a compact table")
     args = parser.parse_args()
 
@@ -25,7 +26,11 @@ def main() -> None:
         print(json.dumps(result, indent=2))
         return
 
-    results = screener.screen(limit=args.limit, min_score=args.min_score)
+    results = screener.screen(
+        limit=args.limit,
+        min_score=args.min_score,
+        include_unscored=args.include_unscored,
+    )
     if args.json:
         print(json.dumps(results, indent=2))
         return
@@ -47,6 +52,7 @@ def _format_results(results: list[dict]) -> str:
                 "name": company["name"],
                 "country": company["country"],
                 "score": score.get("score"),
+                "status": result.get("score_status"),
                 "data": data_quality.get("data_completeness"),
                 "revenue_growth": _pct(metrics.get("revenue_growth")),
                 "ebitda_margin": _pct(metrics.get("ebitda_margin")),

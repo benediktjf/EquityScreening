@@ -16,6 +16,12 @@ class Company:
     def to_dict(self) -> dict[str, str]:
         return asdict(self)
 
+    def is_financial(self) -> bool:
+        return self.sector in FINANCIAL_SECTORS
+
+
+FINANCIAL_SECTORS = {"Financials"}
+
 
 EUROPEAN_UNIVERSE: tuple[Company, ...] = (
     Company("ASML.AS", "ASML Holding", "Netherlands", "Euronext Amsterdam", "Technology"),

@@ -5,7 +5,7 @@ import unittest
 import pandas as pd
 
 from euro_equity_intelligence.data_provider import FinancialData
-from euro_equity_intelligence.screener import EquityScreener
+from euro_equity_intelligence.screener import FINANCIAL_MODEL_WARNING, EquityScreener
 from euro_equity_intelligence.universe import Company
 
 
@@ -59,6 +59,7 @@ class ScreenerTest(unittest.TestCase):
         self.assertEqual(result["market"]["last_close"], 11.5)
         self.assertEqual(result["metrics"]["revenue_growth"], 0.2)
         self.assertGreaterEqual(result["score"]["score"], 0)
+        self.assertEqual(result["score_status"], "scored")
         self.assertEqual(result["data_quality"]["missing_metrics"], [])
         self.assertEqual(result["data_quality"]["data_completeness"], 1.0)
 
@@ -84,10 +85,47 @@ class ScreenerTest(unittest.TestCase):
             },
         )
         self.assertEqual(results[0]["score"]["score"], 50.0)
+        self.assertEqual(results[0]["score_status"], "scored")
         self.assertEqual(results[0]["data_quality"]["data_completeness"], 0.0)
         self.assertEqual(len(results[0]["data_quality"]["missing_metrics"]), 7)
         self.assertIn("financial statements unavailable", results[0]["error"])
         self.assertIn("Data provider error", results[0]["data_quality"]["warnings"][0])
+
+    def test_financial_company_endpoint_is_marked_unscored(self) -> None:
+        universe = (Company("BANK.DE", "Bank AG", "Germany", "Xetra", "Financials"),)
+        screener = EquityScreener(data_provider=FakeProvider(), universe=universe)
+
+        result = screener.get_company_analysis("BANK.DE")
+
+        self.assertEqual(result["company"]["sector"], "Financials")
+        self.assertEqual(result["market"]["last_close"], 11.5)
+        self.assertIsNone(result["score"])
+        self.assertEqual(result["score_status"], "not_scored_financials")
+        self.assertIn(FINANCIAL_MODEL_WARNING, result["data_quality"]["warnings"])
+
+    def test_screen_excludes_financial_companies_by_default(self) -> None:
+        universe = (
+            Company("GOOD.DE", "Good AG", "Germany", "Xetra", "Industrials"),
+            Company("BANK.DE", "Bank AG", "Germany", "Xetra", "Financials"),
+        )
+        screener = EquityScreener(data_provider=FakeProvider(), universe=universe)
+
+        results = screener.screen()
+
+        self.assertEqual([result["company"]["ticker"] for result in results], ["GOOD.DE"])
+
+    def test_screen_can_include_unscored_financial_companies(self) -> None:
+        universe = (
+            Company("GOOD.DE", "Good AG", "Germany", "Xetra", "Industrials"),
+            Company("BANK.DE", "Bank AG", "Germany", "Xetra", "Financials"),
+        )
+        screener = EquityScreener(data_provider=FakeProvider(), universe=universe)
+
+        results = screener.screen(include_unscored=True, min_score=90)
+
+        self.assertEqual([result["company"]["ticker"] for result in results], ["BANK.DE"])
+        self.assertEqual(results[0]["score_status"], "not_scored_financials")
+        self.assertIsNone(results[0]["score"])
 
 
 if __name__ == "__main__":

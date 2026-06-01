@@ -7,7 +7,7 @@ This project is API-first, so the most useful portfolio screenshots are the CLI 
 1. **CLI screen output**
 
    ```bash
-   python run_screen.py --limit 10
+   python3 run_screen.py --limit 10
    ```
 
    Save as: `docs/screenshots/cli-screen.png`

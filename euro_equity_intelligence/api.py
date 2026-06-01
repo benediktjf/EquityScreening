@@ -33,9 +33,14 @@ def create_app(screener: EquityScreener | None = None) -> FastAPI:
     def screen(
         limit: int = Query(20, ge=1, le=50),
         min_score: float | None = Query(None, ge=0, le=100),
+        include_unscored: bool = Query(False),
     ) -> dict:
         """Rank the universe by score."""
-        results = app.state.screener.screen(limit=limit, min_score=min_score)
+        results = app.state.screener.screen(
+            limit=limit,
+            min_score=min_score,
+            include_unscored=include_unscored,
+        )
         return {"count": len(results), "results": results}
 
     return app
