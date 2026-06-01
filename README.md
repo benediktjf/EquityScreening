@@ -33,6 +33,10 @@ docs/               Screenshot guide and example API response
 
 The design keeps data retrieval, metric calculation, scoring, and delivery separate. That makes the core logic easy to test without live market data and keeps the API/CLI layers thin.
 
+## API Documentation
+
+![FastAPI Docs](docs/api_docs.png)
+
 ## Metrics
 
 The project calculates:
