@@ -1,20 +1,20 @@
 # Euro Equity Intelligence
 
-Euro Equity Intelligence is a Python 3.11 equity screening tool for European stocks. It fetches market and financial data from `yfinance`, calculates common valuation and quality metrics, scores each company from 0-100, and exposes the results through both a command-line interface and a FastAPI API.
+Euro Equity Intelligence is a Python 3.11 screening tool for a small universe of European equities. It fetches market and financial data from `yfinance`, calculates a set of valuation and quality metrics, applies a transparent 0-100 heuristic score, and exposes the results through a CLI and FastAPI API.
 
-This is a portfolio-ready MVP focused on clean architecture, transparent financial logic, and graceful handling of imperfect market data.
+The project is intended for financial data exploration and code review. It is not an investment engine, trading system, or recommendation service.
 
 ## Project Overview
 
-The screener starts with a fixed universe of 20 large European companies across Germany, France, Switzerland, the Netherlands, Spain, Italy, and the UK. For each company it attempts to fetch price, market capitalization, enterprise value, income statement, balance sheet, and cash flow data.
+The current universe contains 20 large European companies across Germany, France, Switzerland, the Netherlands, Spain, Italy, and the UK. For each company, the screener attempts to retrieve:
 
-The output is designed for quick comparison:
+- market price data
+- market capitalization and enterprise value
+- income statement data
+- balance sheet data
+- cash flow data
 
-- company metadata
-- latest market snapshot
-- calculated financial metrics
-- weighted 0-100 score
-- data quality warnings when `yfinance` data is missing or incomplete
+Each response includes company metadata, a market snapshot, calculated metrics, a score, and data quality information.
 
 ## Architecture
 
@@ -22,8 +22,8 @@ The output is designed for quick comparison:
 euro_equity_intelligence/
   universe.py       Static 20-stock European universe
   data_provider.py  yfinance access layer with defensive fallbacks
-  metrics.py        Pure financial metric calculations
-  scoring.py        Weighted 0-100 scoring model
+  metrics.py        Financial metric calculations
+  scoring.py        Heuristic 0-100 scoring model
   screener.py       Orchestration layer used by CLI and API
   api.py            FastAPI application
 run_screen.py       CLI entry point
@@ -31,7 +31,7 @@ tests/              unittest suite with mocked financial data
 docs/               Screenshot guide and example API response
 ```
 
-The design keeps data retrieval, metric calculation, scoring, and delivery separate. That makes the core logic easy to test without live market data and keeps the API/CLI layers thin.
+The code separates data retrieval, metric calculation, scoring, and delivery. The financial calculations and scoring logic can be tested without live `yfinance` calls.
 
 ## API Documentation
 
@@ -39,7 +39,7 @@ The design keeps data retrieval, metric calculation, scoring, and delivery separ
 
 ## Metrics
 
-The project calculates:
+The screener calculates:
 
 - revenue growth
 - EBITDA margin
@@ -49,13 +49,13 @@ The project calculates:
 - ROE
 - free cash flow yield
 
-When a metric cannot be calculated because external data is missing, the value is returned as `null` rather than raising an exception.
+If a metric cannot be calculated from available data, the value is returned as `null`.
 
 ## Scoring Methodology
 
-Each metric is converted into a 0-100 component score and combined with explicit weights:
+Each metric is converted into a 0-100 component score and combined with fixed weights:
 
-| Metric | Weight | Direction | Range Used |
+| Metric | Weight | Direction | Heuristic Range |
 | --- | ---: | --- | --- |
 | Revenue growth | 15% | Higher is better | -10% to 20% |
 | EBITDA margin | 15% | Higher is better | 0% to 30% |
@@ -65,9 +65,11 @@ Each metric is converted into a 0-100 component score and combined with explicit
 | ROE | 15% | Higher is better | 0% to 25% |
 | Free cash flow yield | 10% | Higher is better | 0% to 10% |
 
-Missing metrics receive a neutral component score of `50`. The response includes `data_completeness`, so users can distinguish a genuinely average company from a company with sparse data.
+The ranges are heuristic demo ranges chosen to make companies comparable inside this small universe. They are not investment-grade valuation bands and should not be interpreted as buy/sell thresholds.
 
-Example:
+Missing metrics receive a neutral component score of `50`. The response includes `data_completeness`, so users can separate complete results from sparse data.
+
+Example score block:
 
 ```json
 {
@@ -82,17 +84,15 @@ Example:
 }
 ```
 
-## Graceful Data Handling
+## Data Handling
 
-`yfinance` data can be incomplete, delayed, renamed, or unavailable for some tickers. The project handles this defensively:
+`yfinance` data can be incomplete, delayed, renamed, or unavailable for some tickers. The project handles common failure modes defensively:
 
 - missing `info` fields become empty dictionaries
 - missing statements become empty data frames
 - missing financial rows become `null` metrics
 - duplicate statement rows and non-numeric cells are tolerated
 - provider failures return a stable response with neutral scoring and `data_quality.warnings`
-
-This keeps the API and CLI usable even when one company has poor source data.
 
 ## How To Run
 
@@ -112,19 +112,19 @@ python3 -m unittest discover
 Run the CLI:
 
 ```bash
-python run_screen.py
+python3 run_screen.py
 ```
 
 Analyze one company:
 
 ```bash
-python run_screen.py --ticker ASML.AS --json
+python3 run_screen.py --ticker ASML.AS --json
 ```
 
 Filter screen results:
 
 ```bash
-python run_screen.py --min-score 70 --limit 10
+python3 run_screen.py --min-score 70 --limit 10
 ```
 
 ## API
@@ -215,22 +215,30 @@ Live values will differ because they depend on the current `yfinance` response.
 
 Screenshot instructions live in [docs/SCREENSHOTS.md](docs/SCREENSHOTS.md).
 
-Recommended portfolio captures:
+Recommended captures:
 
-- CLI table from `python run_screen.py --limit 10`
+- CLI table from `python3 run_screen.py --limit 10`
 - FastAPI docs at `http://127.0.0.1:8000/docs`
 - JSON response from `/companies/ASML.AS`
 
 Store fresh captures in `docs/screenshots/`.
 
+## Limitations
+
+- `yfinance` data quality and availability vary by ticker, exchange, and statement field.
+- The scoring model is a simplified heuristic, not a valuation model.
+- The universe is fixed at 20 European companies.
+- The project does not include backtesting.
+- Scores are not sector-relative yet.
+- Financial companies require different metrics than industrial, consumer, energy, or software companies. Bank and insurer metrics such as capital ratios, net interest margin, combined ratio, or book-value-based valuation are not implemented.
+
 ## Roadmap
 
 - Add configurable ticker universes from CSV
 - Add sector-relative scoring
-- Add simple historical trend charts
 - Add cached data snapshots for reproducible demos
-- Add Dockerfile for one-command local setup
-- Add CI workflow for tests and linting
+- Add financial-sector-specific metrics
+- Add CI workflow for tests
 
 ## Disclaimer
 
