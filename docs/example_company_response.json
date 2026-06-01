@@ -1,0 +1,42 @@
+{
+  "company": {
+    "ticker": "ASML.AS",
+    "name": "ASML Holding",
+    "country": "Netherlands",
+    "exchange": "Euronext Amsterdam",
+    "sector": "Technology"
+  },
+  "market": {
+    "currency": "EUR",
+    "market_cap": 350000000000,
+    "enterprise_value": 345000000000,
+    "last_close": 900.12
+  },
+  "metrics": {
+    "revenue_growth": 0.14,
+    "ebitda_margin": 0.33,
+    "net_debt_to_ebitda": -0.4,
+    "pe_ratio": 38.2,
+    "ev_to_ebitda": 25.1,
+    "roe": 0.51,
+    "free_cash_flow_yield": 0.025
+  },
+  "score": {
+    "score": 76.45,
+    "components": {
+      "revenue_growth": 80.0,
+      "ebitda_margin": 100.0,
+      "net_debt_to_ebitda": 100.0,
+      "pe_ratio": 0.0,
+      "ev_to_ebitda": 0.0,
+      "roe": 100.0,
+      "free_cash_flow_yield": 25.0
+    },
+    "data_completeness": 1.0
+  },
+  "data_quality": {
+    "missing_metrics": [],
+    "data_completeness": 1.0,
+    "warnings": []
+  }
+}

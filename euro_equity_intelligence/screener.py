@@ -89,17 +89,18 @@ def default_companies() -> list[dict[str, str]]:
 
 
 def _market_snapshot(data) -> dict[str, Any]:
+    info = data.info or {}
     return {
-        "currency": data.info.get("currency"),
-        "market_cap": data.info.get("marketCap"),
-        "enterprise_value": data.info.get("enterpriseValue"),
+        "currency": info.get("currency"),
+        "market_cap": info.get("marketCap"),
+        "enterprise_value": info.get("enterpriseValue"),
         "last_close": _last_close(data),
     }
 
 
 def _last_close(data) -> float | None:
     history = data.price_history
-    if history.empty or "Close" not in history.columns:
+    if history is None or history.empty or "Close" not in history.columns:
         return None
     close = history["Close"].dropna()
     if close.empty:
