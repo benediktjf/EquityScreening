@@ -35,7 +35,7 @@ def create_app(screener: EquityScreener | None = None) -> FastAPI:
         min_score: float | None = Query(None, ge=0, le=100),
         include_unscored: bool = Query(False),
     ) -> dict:
-        """Rank the universe by score."""
+        """Rank the universe by score, excluding unscored companies by default."""
         results = app.state.screener.screen(
             limit=limit,
             min_score=min_score,

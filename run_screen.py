@@ -16,7 +16,11 @@ def main() -> None:
     parser.add_argument("--ticker", help="Analyze one ticker from the universe, e.g. ASML.AS")
     parser.add_argument("--limit", type=int, default=20, help="Maximum number of rows to display")
     parser.add_argument("--min-score", type=float, default=None, help="Only show companies at or above this score")
-    parser.add_argument("--include-unscored", action="store_true", help="Include unscored financial companies")
+    parser.add_argument(
+        "--include-unscored",
+        action="store_true",
+        help="Include unscored financial or insufficient-data companies",
+    )
     parser.add_argument("--json", action="store_true", help="Print raw JSON instead of a compact table")
     args = parser.parse_args()
 

@@ -1,6 +1,6 @@
 # Euro Equity Intelligence
 
-Euro Equity Intelligence is a Python 3.11 screening tool for a small universe of European equities. It fetches market and financial data from `yfinance`, calculates a set of valuation and quality metrics, applies a transparent 0-100 heuristic score for non-financial companies, and exposes the results through a CLI and FastAPI API.
+Euro Equity Intelligence is a Python 3.11 screening tool for a small universe of European equities. It fetches market and financial data from `yfinance`, calculates a set of valuation and quality metrics, applies a transparent 0-100 heuristic score for non-financial companies with sufficient data, and exposes the results through a CLI and FastAPI API.
 
 The project is intended for financial data exploration and code review. It is not an investment engine, trading system, or recommendation service.
 
@@ -16,7 +16,7 @@ The current universe contains 20 large European companies across Germany, France
 
 Each response includes company metadata, a market snapshot, calculated metrics, a score, and data quality information.
 
-Banks and insurers are identified by sector and are not scored by the default model. They can still be returned by company endpoints and optional screen output with `score_status = "not_scored_financials"`.
+Banks and insurers are identified by sector and are not scored by the default model. They can still be returned by company endpoints and optional screen output with `score_status = "not_scored_financials"`. Companies with very incomplete data are also excluded from ranked screens by default.
 
 ## Architecture
 
@@ -69,7 +69,14 @@ For non-financial companies, each metric is converted into a 0-100 component sco
 
 The ranges are heuristic demo ranges chosen to make companies comparable inside this small universe. They are not investment-grade valuation bands and should not be interpreted as buy/sell thresholds.
 
-Missing metrics receive a neutral component score of `50`. The response includes `data_completeness`, so users can separate complete results from sparse data.
+Missing metrics receive a neutral component score of `50` during calculation, but the final `score_status` determines how the result should be interpreted. Companies with too little data are not shown as normal ranked results.
+
+| `data_completeness` | `score_status` | Default `/screen` behavior |
+| ---: | --- | --- |
+| `>= 0.75` | `scored` | Included |
+| `>= 0.40` and `< 0.75` | `estimated_partial_data` | Included, visibly marked |
+| `< 0.40` | `insufficient_data` | Excluded unless `include_unscored=true` |
+| Financial sector | `not_scored_financials` | Excluded unless `include_unscored=true` |
 
 Financial companies are not scored by this model because bank and insurance analysis requires sector-specific metrics.
 
@@ -98,6 +105,26 @@ Financial company score block:
   "data_quality": {
     "warnings": [
       "Financial companies are not scored by the default model because bank/insurance analysis requires sector-specific metrics."
+    ]
+  }
+}
+```
+
+Insufficient-data score block:
+
+```json
+{
+  "score": null,
+  "score_status": "insufficient_data",
+  "data_quality": {
+    "missing_metrics": [
+      "ebitda_margin",
+      "net_debt_to_ebitda",
+      "pe_ratio"
+    ],
+    "data_completeness": 0.29,
+    "warnings": [
+      "Data completeness is below 0.40; company is not included in ranked results by default."
     ]
   }
 }
@@ -146,7 +173,7 @@ Filter screen results:
 python3 run_screen.py --min-score 70 --limit 10
 ```
 
-Include unscored financial companies in CLI output:
+Include unscored financial or insufficient-data companies in CLI output:
 
 ```bash
 python3 run_screen.py --include-unscored
@@ -180,7 +207,7 @@ Optional `/screen` query parameters:
 | --- | --- | --- |
 | `limit` | integer | Number of results, default `20`, max `50` |
 | `min_score` | float | Only return companies with score >= this value |
-| `include_unscored` | boolean | Include financial companies that are not scored by the default model |
+| `include_unscored` | boolean | Include financial and insufficient-data companies excluded by default |
 
 Example:
 
@@ -188,7 +215,7 @@ Example:
 curl "http://127.0.0.1:8000/screen?limit=5&min_score=60"
 ```
 
-Include unscored financial companies:
+Include unscored companies:
 
 ```bash
 curl "http://127.0.0.1:8000/screen?include_unscored=true"
@@ -200,8 +227,8 @@ CLI table shape:
 
 ```text
 ticker  name          country      score  status  data revenue_growth ebitda_margin net_debt_ebitda    pe ev_ebitda    roe fcf_yield error
-ASML.AS ASML Holding  Netherlands  76.45  scored  1.00          14.0%         33.0%            -0.40 38.20     25.10  51.0%      2.5%  None
-SAP.DE  SAP           Germany      68.20  scored  0.86           9.0%         28.0%             0.70 31.10     18.40  19.0%      None  None
+ASML.AS ASML Holding  Netherlands  76.45  scored                  1.00          14.0%         33.0%            -0.40 38.20     25.10  51.0%      2.5%  None
+SAP.DE  SAP           Germany      68.20  estimated_partial_data  0.71           9.0%         28.0%             None 31.10      None  19.0%      None  None
 ```
 
 Single company API response shape:
@@ -259,7 +286,7 @@ Store fresh captures in `docs/screenshots/`.
 ## Limitations
 
 - `yfinance` data quality and availability vary by ticker, exchange, and statement field.
-- The scoring model is a simplified heuristic for non-financial companies, not a valuation model.
+- The scoring model is a simplified heuristic for non-financial companies with sufficient data, not a valuation model.
 - The universe is fixed at 20 European companies.
 - The project does not include backtesting.
 - Scores are not sector-relative yet.
