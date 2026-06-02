@@ -4,7 +4,7 @@ from math import isclose
 import unittest
 
 from euro_equity_intelligence.metrics import EquityMetrics
-from euro_equity_intelligence.scoring import score_metrics
+from euro_equity_intelligence.scoring import METRIC_SCORE_CONFIG, score_metrics
 
 
 class ScoringTest(unittest.TestCase):
@@ -23,6 +23,7 @@ class ScoringTest(unittest.TestCase):
 
         self.assertTrue(isclose(result.score, 100.0))
         self.assertTrue(isclose(result.data_completeness, 1.0))
+        self.assertEqual(set(result.score_breakdown), set(METRIC_SCORE_CONFIG))
 
     def test_missing_metrics_are_neutral_and_reduce_completeness(self) -> None:
         metrics = EquityMetrics(
@@ -40,6 +41,9 @@ class ScoringTest(unittest.TestCase):
         self.assertTrue(isclose(result.score, 50.0))
         self.assertTrue(isclose(result.data_completeness, 0.0))
         self.assertTrue(all(isclose(component, 50.0) for component in result.components.values()))
+        self.assertTrue(
+            all(item.raw_value is None for item in result.score_breakdown.values())
+        )
 
     def test_partial_metrics_keep_weighted_score_and_completeness(self) -> None:
         metrics = EquityMetrics(
@@ -60,6 +64,34 @@ class ScoringTest(unittest.TestCase):
         self.assertTrue(isclose(result.components["roe"], 50.0))
         self.assertTrue(isclose(result.score, 50.0))
         self.assertTrue(isclose(result.data_completeness, 0.43))
+
+    def test_score_breakdown_contains_weighted_contributions(self) -> None:
+        metrics = EquityMetrics(
+            revenue_growth=0.08,
+            ebitda_margin=0.22,
+            net_debt_to_ebitda=1.5,
+            pe_ratio=18.0,
+            ev_to_ebitda=11.0,
+            roe=0.16,
+            free_cash_flow_yield=0.045,
+        )
+
+        result = score_metrics(metrics)
+
+        weighted_score = round(
+            sum(item.weighted_contribution for item in result.score_breakdown.values()),
+            2,
+        )
+        self.assertEqual(result.score, weighted_score)
+        for metric_name, item in result.score_breakdown.items():
+            config = METRIC_SCORE_CONFIG[metric_name]
+            self.assertEqual(item.weight, config.weight)
+            self.assertEqual(item.direction, config.direction)
+            self.assertEqual(item.component_score, result.components[metric_name])
+            self.assertEqual(
+                item.weighted_contribution,
+                round(item.component_score * item.weight, 2),
+            )
 
     def test_component_scores_are_clamped_to_zero_and_one_hundred(self) -> None:
         metrics = EquityMetrics(

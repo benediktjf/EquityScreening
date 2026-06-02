@@ -5,7 +5,7 @@ from pathlib import Path
 import unittest
 
 from euro_equity_intelligence.metrics import EquityMetrics
-from euro_equity_intelligence.scoring import WEIGHTS, score_metrics
+from euro_equity_intelligence.scoring import score_metrics
 from scripts.generate_example_response import build_example_response
 
 
@@ -35,7 +35,10 @@ class DocumentedExamplesTest(unittest.TestCase):
         example = json.loads(example_path.read_text())
 
         weighted_score = round(
-            sum(example["score"]["components"][name] * WEIGHTS[name] for name in WEIGHTS),
+            sum(
+                item["weighted_contribution"]
+                for item in example["score"]["score_breakdown"].values()
+            ),
             2,
         )
 

@@ -23,7 +23,7 @@
     "free_cash_flow_yield": 0.045
   },
   "score": {
-    "score": 63.69,
+    "score": 63.68,
     "components": {
       "revenue_growth": 60.0,
       "ebitda_margin": 73.33,
@@ -32,6 +32,57 @@
       "ev_to_ebitda": 64.29,
       "roe": 64.0,
       "free_cash_flow_yield": 45.0
+    },
+    "score_breakdown": {
+      "revenue_growth": {
+        "raw_value": 0.08,
+        "component_score": 60.0,
+        "weight": 0.15,
+        "weighted_contribution": 9.0,
+        "direction": "higher_is_better"
+      },
+      "ebitda_margin": {
+        "raw_value": 0.22,
+        "component_score": 73.33,
+        "weight": 0.15,
+        "weighted_contribution": 11.0,
+        "direction": "higher_is_better"
+      },
+      "net_debt_to_ebitda": {
+        "raw_value": 1.5,
+        "component_score": 70.0,
+        "weight": 0.15,
+        "weighted_contribution": 10.5,
+        "direction": "lower_is_better"
+      },
+      "pe_ratio": {
+        "raw_value": 18.0,
+        "component_score": 62.96,
+        "weight": 0.15,
+        "weighted_contribution": 9.44,
+        "direction": "lower_is_better"
+      },
+      "ev_to_ebitda": {
+        "raw_value": 11.0,
+        "component_score": 64.29,
+        "weight": 0.15,
+        "weighted_contribution": 9.64,
+        "direction": "lower_is_better"
+      },
+      "roe": {
+        "raw_value": 0.16,
+        "component_score": 64.0,
+        "weight": 0.15,
+        "weighted_contribution": 9.6,
+        "direction": "higher_is_better"
+      },
+      "free_cash_flow_yield": {
+        "raw_value": 0.045,
+        "component_score": 45.0,
+        "weight": 0.1,
+        "weighted_contribution": 4.5,
+        "direction": "higher_is_better"
+      }
     },
     "data_completeness": 1.0
   },

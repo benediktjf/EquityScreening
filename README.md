@@ -72,6 +72,8 @@ The ranges are heuristic demo ranges chosen to make companies comparable inside 
 
 Missing metrics receive a neutral component score of `50` during calculation, but the final `score_status` determines how the result should be interpreted. Companies with too little data are not shown as normal ranked results.
 
+The API returns a `score_breakdown` for each metric. It includes the raw metric value, the normalized component score, the metric weight, the weighted contribution, and whether higher or lower values are preferred. The final `score` is the rounded sum of the displayed weighted contributions.
+
 | `data_completeness` | `score_status` | Default `/screen` behavior |
 | ---: | --- | --- |
 | `>= 0.75` | `scored` | Included |
@@ -92,15 +94,22 @@ Generated score block:
 ```json
 {
   "score": {
-    "score": 63.69,
-    "components": {
-      "revenue_growth": 60.0,
-      "ebitda_margin": 73.33,
-      "net_debt_to_ebitda": 70.0,
-      "pe_ratio": 62.96,
-      "ev_to_ebitda": 64.29,
-      "roe": 64.0,
-      "free_cash_flow_yield": 45.0
+    "score": 63.68,
+    "score_breakdown": {
+      "revenue_growth": {
+        "raw_value": 0.08,
+        "component_score": 60.0,
+        "weight": 0.15,
+        "weighted_contribution": 9.0,
+        "direction": "higher_is_better"
+      },
+      "pe_ratio": {
+        "raw_value": 18.0,
+        "component_score": 62.96,
+        "weight": 0.15,
+        "weighted_contribution": 9.44,
+        "direction": "lower_is_better"
+      }
     },
     "data_completeness": 1.0
   },
@@ -275,15 +284,22 @@ Generated single-company API response excerpt:
     "free_cash_flow_yield": 0.045
   },
   "score": {
-    "score": 63.69,
-    "components": {
-      "revenue_growth": 60.0,
-      "ebitda_margin": 73.33,
-      "net_debt_to_ebitda": 70.0,
-      "pe_ratio": 62.96,
-      "ev_to_ebitda": 64.29,
-      "roe": 64.0,
-      "free_cash_flow_yield": 45.0
+    "score": 63.68,
+    "score_breakdown": {
+      "revenue_growth": {
+        "raw_value": 0.08,
+        "component_score": 60.0,
+        "weight": 0.15,
+        "weighted_contribution": 9.0,
+        "direction": "higher_is_better"
+      },
+      "pe_ratio": {
+        "raw_value": 18.0,
+        "component_score": 62.96,
+        "weight": 0.15,
+        "weighted_contribution": 9.44,
+        "direction": "lower_is_better"
+      }
     },
     "data_completeness": 1.0
   },
