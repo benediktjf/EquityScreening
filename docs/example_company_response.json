@@ -1,36 +1,37 @@
 {
+  "example_note": "Generated deterministic sample; not live market data.",
   "company": {
-    "ticker": "ASML.AS",
-    "name": "ASML Holding",
-    "country": "Netherlands",
-    "exchange": "Euronext Amsterdam",
-    "sector": "Technology"
+    "ticker": "EXAMPLE.DE",
+    "name": "Example Industrials AG",
+    "country": "Germany",
+    "exchange": "Xetra",
+    "sector": "Industrials"
   },
   "market": {
     "currency": "EUR",
-    "market_cap": 350000000000,
-    "enterprise_value": 345000000000,
-    "last_close": 900.12
+    "market_cap": 10000000000,
+    "enterprise_value": 11500000000,
+    "last_close": 50.0
   },
   "metrics": {
-    "revenue_growth": 0.14,
-    "ebitda_margin": 0.33,
-    "net_debt_to_ebitda": -0.4,
-    "pe_ratio": 38.2,
-    "ev_to_ebitda": 25.1,
-    "roe": 0.51,
-    "free_cash_flow_yield": 0.025
+    "revenue_growth": 0.08,
+    "ebitda_margin": 0.22,
+    "net_debt_to_ebitda": 1.5,
+    "pe_ratio": 18.0,
+    "ev_to_ebitda": 11.0,
+    "roe": 0.16,
+    "free_cash_flow_yield": 0.045
   },
   "score": {
-    "score": 76.45,
+    "score": 63.69,
     "components": {
-      "revenue_growth": 80.0,
-      "ebitda_margin": 100.0,
-      "net_debt_to_ebitda": 100.0,
-      "pe_ratio": 0.0,
-      "ev_to_ebitda": 0.0,
-      "roe": 100.0,
-      "free_cash_flow_yield": 25.0
+      "revenue_growth": 60.0,
+      "ebitda_margin": 73.33,
+      "net_debt_to_ebitda": 70.0,
+      "pe_ratio": 62.96,
+      "ev_to_ebitda": 64.29,
+      "roe": 64.0,
+      "free_cash_flow_yield": 45.0
     },
     "data_completeness": 1.0
   },

@@ -31,6 +31,7 @@ euro_equity_intelligence/
 run_screen.py       CLI entry point
 tests/              unittest suite with mocked financial data
 docs/               Screenshot guide and example API response
+scripts/            deterministic docs/example generator
 ```
 
 The code separates data retrieval, metric calculation, scoring, and delivery. The financial calculations and scoring logic can be tested without live `yfinance` calls.
@@ -80,12 +81,27 @@ Missing metrics receive a neutral component score of `50` during calculation, bu
 
 Financial companies are not scored by this model because bank and insurance analysis requires sector-specific metrics.
 
-Example score block:
+The deterministic example response in [docs/example_company_response.json](docs/example_company_response.json) is generated from fixed sample metrics by:
+
+```bash
+python3 scripts/generate_example_response.py
+```
+
+Generated score block:
 
 ```json
 {
   "score": {
-    "score": 76.45,
+    "score": 63.69,
+    "components": {
+      "revenue_growth": 60.0,
+      "ebitda_margin": 73.33,
+      "net_debt_to_ebitda": 70.0,
+      "pe_ratio": 62.96,
+      "ev_to_ebitda": 64.29,
+      "roe": 64.0,
+      "free_cash_flow_yield": 45.0
+    },
     "data_completeness": 1.0
   },
   "score_status": "scored",
@@ -223,42 +239,52 @@ curl "http://127.0.0.1:8000/screen?include_unscored=true"
 
 ## Example Output
 
-CLI table shape:
+CLI table shape. Live values depend on `yfinance`, so precise scores are not hard-coded here:
 
 ```text
 ticker  name          country      score  status  data revenue_growth ebitda_margin net_debt_ebitda    pe ev_ebitda    roe fcf_yield error
-ASML.AS ASML Holding  Netherlands  76.45  scored                  1.00          14.0%         33.0%            -0.40 38.20     25.10  51.0%      2.5%  None
-SAP.DE  SAP           Germany      68.20  estimated_partial_data  0.71           9.0%         28.0%             None 31.10      None  19.0%      None  None
+<TICKER> <Name>        <Country>    <score> scored                  1.00          <pct>         <pct>            <num> <num>     <num>  <pct>     <pct> None
+<TICKER> <Name>        <Country>    <score> estimated_partial_data  0.57          <pct>         None             <num> <num>     None   <pct>     None  None
 ```
 
-Single company API response shape:
+Generated single-company API response excerpt:
 
 ```json
 {
+  "example_note": "Generated deterministic sample; not live market data.",
   "company": {
-    "ticker": "ASML.AS",
-    "name": "ASML Holding",
-    "country": "Netherlands",
-    "exchange": "Euronext Amsterdam",
-    "sector": "Technology"
+    "ticker": "EXAMPLE.DE",
+    "name": "Example Industrials AG",
+    "country": "Germany",
+    "exchange": "Xetra",
+    "sector": "Industrials"
   },
   "market": {
     "currency": "EUR",
-    "market_cap": 350000000000,
-    "enterprise_value": 345000000000,
-    "last_close": 900.12
+    "market_cap": 10000000000,
+    "enterprise_value": 11500000000,
+    "last_close": 50.0
   },
   "metrics": {
-    "revenue_growth": 0.14,
-    "ebitda_margin": 0.33,
-    "net_debt_to_ebitda": -0.4,
-    "pe_ratio": 38.2,
-    "ev_to_ebitda": 25.1,
-    "roe": 0.51,
-    "free_cash_flow_yield": 0.025
+    "revenue_growth": 0.08,
+    "ebitda_margin": 0.22,
+    "net_debt_to_ebitda": 1.5,
+    "pe_ratio": 18.0,
+    "ev_to_ebitda": 11.0,
+    "roe": 0.16,
+    "free_cash_flow_yield": 0.045
   },
   "score": {
-    "score": 76.45,
+    "score": 63.69,
+    "components": {
+      "revenue_growth": 60.0,
+      "ebitda_margin": 73.33,
+      "net_debt_to_ebitda": 70.0,
+      "pe_ratio": 62.96,
+      "ev_to_ebitda": 64.29,
+      "roe": 64.0,
+      "free_cash_flow_yield": 45.0
+    },
     "data_completeness": 1.0
   },
   "score_status": "scored",
@@ -269,7 +295,7 @@ Single company API response shape:
 }
 ```
 
-Live values will differ because they depend on the current `yfinance` response.
+The full generated response is stored in [docs/example_company_response.json](docs/example_company_response.json). Live values from `/companies/{ticker}` will differ because they depend on the current `yfinance` response.
 
 ## Screenshots
 
