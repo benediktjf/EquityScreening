@@ -1,5 +1,7 @@
 # Euro Equity Intelligence
 
+[![CI](https://github.com/benediktjf/EquityScreening/actions/workflows/ci.yml/badge.svg)](https://github.com/benediktjf/EquityScreening/actions/workflows/ci.yml)
+
 Euro Equity Intelligence is a Python 3.11 screening tool for a small universe of European equities. It fetches market and financial data from `yfinance`, calculates a set of valuation and quality metrics, applies a transparent 0-100 heuristic score for non-financial companies with sufficient data, and exposes the results through a CLI and FastAPI API.
 
 The project is intended for financial data exploration and code review. It is not an investment engine, trading system, or recommendation service.
