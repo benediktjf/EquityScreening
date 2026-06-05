@@ -15,7 +15,7 @@ def _analysis(
     sector: str,
     score: float | None,
     score_status: str,
-    data_completeness: float,
+    metric_coverage: float,
     missing_metrics: list[str] | None = None,
     warnings: list[str] | None = None,
     error: str | None = None,
@@ -44,12 +44,14 @@ def _analysis(
                     "direction": "higher_is_better",
                 }
             },
-            "data_completeness": data_completeness,
+            "metric_coverage": metric_coverage,
+            "data_completeness": metric_coverage,
         },
         "score_status": score_status,
         "data_quality": {
             "missing_metrics": missing_metrics or [],
-            "data_completeness": data_completeness,
+            "metric_coverage": metric_coverage,
+            "data_completeness": metric_coverage,
             "warnings": warnings or [],
         },
     }
@@ -71,7 +73,9 @@ class FakeCliScreener:
                 None,
                 "not_scored_financials",
                 0.86,
-                warnings=["Financial companies are not scored by the default model."],
+                warnings=[
+                    "Financial companies are excluded from the generic model because bank and insurance analysis requires sector-specific metrics."
+                ],
             ),
             _analysis(
                 "THIN.DE",
@@ -81,7 +85,7 @@ class FakeCliScreener:
                 "insufficient_data",
                 0.29,
                 missing_metrics=["pe_ratio", "ev_to_ebitda"],
-                warnings=["Data completeness is below 0.40."],
+                warnings=["Metric coverage is below 0.40."],
                 error="Provider data unavailable",
             ),
         ]
@@ -120,8 +124,8 @@ class FakeCliScreener:
                 continue
             rows.append(result)
 
-        if sort_by == "data_completeness":
-            rows.sort(key=lambda item: item["data_quality"]["data_completeness"], reverse=True)
+        if sort_by in {"metric_coverage", "data_completeness"}:
+            rows.sort(key=lambda item: item["data_quality"]["metric_coverage"], reverse=True)
         else:
             rows.sort(key=lambda item: item["score"]["score"] if item.get("score") else -1, reverse=True)
 
@@ -134,7 +138,7 @@ class CliTest(unittest.TestCase):
 
         self.assertIn("ticker", output)
         self.assertIn("score_status", output)
-        self.assertIn("data_completeness", output)
+        self.assertIn("metric_coverage", output)
         self.assertIn("ASML.AS", output)
         self.assertNotIn("ALV.DE", output)
 
@@ -162,11 +166,11 @@ class CliTest(unittest.TestCase):
         self.assertIn("ASML.AS", output)
         self.assertNotIn("SAP.DE", output)
 
-    def test_sort_by_data_completeness_is_passed_to_screener(self) -> None:
+    def test_sort_by_metric_coverage_is_passed_to_screener(self) -> None:
         fake = FakeCliScreener()
-        output = self._run(["--sort", "data_completeness"], fake)
+        output = self._run(["--sort", "metric_coverage"], fake)
 
-        self.assertEqual(fake.screen_calls[-1]["sort_by"], "data_completeness")
+        self.assertEqual(fake.screen_calls[-1]["sort_by"], "metric_coverage")
         self.assertLess(output.index("SAP.DE"), output.index("ASML.AS"))
 
     def test_include_unscored_shows_unscored_companies_clearly(self) -> None:

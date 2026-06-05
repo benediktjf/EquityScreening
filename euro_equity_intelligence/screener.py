@@ -16,12 +16,12 @@ SCORE_STATUS_INSUFFICIENT = "insufficient_data"
 SCORE_STATUS_FINANCIALS = "not_scored_financials"
 
 FINANCIAL_MODEL_WARNING = (
-    "Financial companies are not scored by the default model because bank/insurance analysis "
+    "Financial companies are excluded from the generic model because bank and insurance analysis "
     "requires sector-specific metrics."
 )
-PARTIAL_DATA_WARNING = "Score is estimated from partial data; review missing_metrics before comparing."
+PARTIAL_DATA_WARNING = "Score is estimated from partial model metric coverage; review missing_metrics before comparing."
 INSUFFICIENT_DATA_WARNING = (
-    "Data completeness is below 0.40; company is not included in ranked results by default."
+    "Metric coverage is below 0.40; company is not included in ranked results by default."
 )
 
 
@@ -47,6 +47,8 @@ class EquityScreener:
         try:
             data = self._data_provider.get_company_data(company.ticker)
         except Exception:
+            if company.is_financial():
+                return _unavailable_financial_analysis(company)
             return _unavailable_analysis(company)
 
         metrics = calculate_metrics(data)
@@ -63,20 +65,21 @@ class EquityScreener:
         include_unscored: bool = False,
         sort_by: str = "score",
     ) -> list[dict[str, Any]]:
-        """Rank the universe by score or data completeness."""
-        if sort_by not in {"score", "data_completeness"}:
-            raise ValueError("sort_by must be 'score' or 'data_completeness'")
+        """Rank the universe by score or model metric coverage."""
+        if sort_by not in {"score", "metric_coverage", "data_completeness"}:
+            raise ValueError("sort_by must be 'score', 'metric_coverage', or 'data_completeness'")
 
         results = []
         for company in self._universe:
             try:
                 analysis = self.get_company_analysis(company.ticker)
             except Exception:
-                analysis = _unavailable_analysis(company)
+                analysis = _unavailable_financial_analysis(company) if company.is_financial() else _unavailable_analysis(company)
             score_value = analysis["score"]["score"] if analysis.get("score") else None
             has_provider_error = analysis.get("error") == PROVIDER_DATA_UNAVAILABLE
+            is_financial = analysis.get("score_status") == SCORE_STATUS_FINANCIALS
             if score_value is None:
-                if not include_unscored and not (has_provider_error and min_score is None):
+                if not include_unscored and not (has_provider_error and not is_financial and min_score is None):
                     continue
             elif min_score is not None and score_value < min_score:
                 continue
@@ -106,7 +109,7 @@ def _screen_sort_key(analysis: dict[str, Any], sort_by: str) -> float:
     if sort_by == "score":
         return analysis["score"]["score"] if analysis.get("score") else -1.0
     data_quality = analysis.get("data_quality") or {}
-    return data_quality.get("data_completeness") or -1.0
+    return data_quality.get("metric_coverage", data_quality.get("data_completeness")) or -1.0
 
 
 def _market_snapshot(data) -> dict[str, Any]:
@@ -135,7 +138,7 @@ def _data_quality(
     extra_warnings: list[str] | None = None,
 ) -> dict[str, Any]:
     missing_metrics = missing_metric_names(metrics)
-    data_completeness = round((len(metrics.to_dict()) - len(missing_metrics)) / len(metrics.to_dict()), 2)
+    metric_coverage = round((len(metrics.to_dict()) - len(missing_metrics)) / len(metrics.to_dict()), 2)
     warnings = list(extra_warnings or [])
     if source_error:
         warnings.append(source_error)
@@ -145,15 +148,16 @@ def _data_quality(
         warnings.append("No usable financial metrics were available.")
     return {
         "missing_metrics": missing_metrics,
-        "data_completeness": data_completeness,
+        "metric_coverage": metric_coverage,
+        "data_completeness": metric_coverage,
         "warnings": warnings,
     }
 
 
-def _score_status(data_completeness: float) -> str:
-    if data_completeness >= 0.75:
+def _score_status(metric_coverage: float) -> str:
+    if metric_coverage >= 0.75:
         return SCORE_STATUS_SCORED
-    if data_completeness >= 0.40:
+    if metric_coverage >= 0.40:
         return SCORE_STATUS_PARTIAL
     return SCORE_STATUS_INSUFFICIENT
 
@@ -165,7 +169,7 @@ def _scored_analysis(
     score,
     source_error: str | None,
 ) -> dict[str, Any]:
-    score_status = _score_status(score.data_completeness)
+    score_status = _score_status(score.metric_coverage)
     extra_warnings = []
     if score_status == SCORE_STATUS_PARTIAL:
         extra_warnings.append(PARTIAL_DATA_WARNING)
@@ -183,19 +187,28 @@ def _scored_analysis(
 
 
 def _unavailable_analysis(company: Company) -> dict[str, Any]:
-    metrics = EquityMetrics(
-        revenue_growth=None,
-        ebitda_margin=None,
-        net_debt_to_ebitda=None,
-        pe_ratio=None,
-        ev_to_ebitda=None,
-        roe=None,
-        free_cash_flow_yield=None,
-    )
+    metrics = EquityMetrics.empty()
     score = score_metrics(metrics)
     analysis = _scored_analysis(company, {}, metrics, score, source_error=PROVIDER_DATA_UNAVAILABLE)
     analysis["error"] = PROVIDER_DATA_UNAVAILABLE
     return analysis
+
+
+def _unavailable_financial_analysis(company: Company) -> dict[str, Any]:
+    metrics = EquityMetrics.empty()
+    return {
+        "company": company.to_dict(),
+        "market": {},
+        "metrics": metrics.to_dict(),
+        "score": None,
+        "score_status": SCORE_STATUS_FINANCIALS,
+        "data_quality": _data_quality(
+            metrics,
+            source_error=PROVIDER_DATA_UNAVAILABLE,
+            extra_warnings=[FINANCIAL_MODEL_WARNING],
+        ),
+        "error": PROVIDER_DATA_UNAVAILABLE,
+    }
 
 
 def _unscored_financial_analysis(

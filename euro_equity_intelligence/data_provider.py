@@ -19,9 +19,13 @@ _USABLE_INFO_FIELDS = {
     "enterpriseValue",
     "revenueGrowth",
     "ebitdaMargins",
+    "operatingMargins",
+    "profitMargins",
     "trailingPE",
     "enterpriseToEbitda",
+    "enterpriseToRevenue",
     "returnOnEquity",
+    "returnOnCapital",
     "freeCashflow",
 }
 

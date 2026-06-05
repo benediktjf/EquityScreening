@@ -5,6 +5,7 @@ import unittest
 import pandas as pd
 
 from euro_equity_intelligence.data_provider import PROVIDER_DATA_UNAVAILABLE, FinancialData
+from euro_equity_intelligence.metrics import EquityMetrics
 from euro_equity_intelligence.screener import (
     FINANCIAL_MODEL_WARNING,
     INSUFFICIENT_DATA_WARNING,
@@ -22,10 +23,18 @@ class FakeProvider:
             info={"marketCap": 2_000.0, "enterpriseValue": 2_400.0},
             financials=pd.DataFrame(
                 {
-                    "2025-12-31": [revenue, 300.0, 100.0],
-                    "2024-12-31": [1_000.0, 200.0, 80.0],
+                    "2025-12-31": [revenue, 300.0, 240.0, 100.0, 130.0, 30.0, 20.0],
+                    "2024-12-31": [1_000.0, 200.0, 190.0, 80.0, 105.0, 25.0, 18.0],
                 },
-                index=["Total Revenue", "EBITDA", "Net Income"],
+                index=[
+                    "Total Revenue",
+                    "EBITDA",
+                    "Operating Income",
+                    "Net Income",
+                    "Pretax Income",
+                    "Tax Provision",
+                    "Interest Expense",
+                ],
             ),
             balance_sheet=pd.DataFrame(
                 {"2025-12-31": [500.0, 100.0, 800.0]},
@@ -46,9 +55,15 @@ class PartialProvider:
         return FinancialData(
             ticker=ticker,
             info={
+                "marketCap": 2_000.0,
+                "enterpriseValue": 3_000.0,
                 "revenueGrowth": 0.05,
                 "ebitdaMargins": 0.20,
+                "operatingMargins": 0.16,
+                "profitMargins": 0.08,
                 "trailingPE": 18.0,
+                "enterpriseToRevenue": 2.1,
+                "returnOnEquity": 0.14,
             },
             financials=pd.DataFrame(),
             balance_sheet=pd.DataFrame(),
@@ -117,6 +132,7 @@ class ScreenerTest(unittest.TestCase):
         self.assertEqual(result["score_status"], "scored")
         self.assertEqual(result["data_quality"]["missing_metrics"], [])
         self.assertEqual(result["data_quality"]["data_completeness"], 1.0)
+        self.assertEqual(result["data_quality"]["metric_coverage"], 1.0)
 
     def test_company_with_provider_error_is_insufficient_data(self) -> None:
         universe = (Company("BROKEN.DE", "Broken AG", "Germany", "Xetra", "Industrials"),)
@@ -126,22 +142,12 @@ class ScreenerTest(unittest.TestCase):
 
         self.assertEqual(result["company"]["ticker"], "BROKEN.DE")
         self.assertEqual(result["market"], {})
-        self.assertEqual(
-            result["metrics"],
-            {
-                "revenue_growth": None,
-                "ebitda_margin": None,
-                "net_debt_to_ebitda": None,
-                "pe_ratio": None,
-                "ev_to_ebitda": None,
-                "roe": None,
-                "free_cash_flow_yield": None,
-            },
-        )
+        self.assertEqual(result["metrics"], EquityMetrics.empty().to_dict())
         self.assertIsNone(result["score"])
         self.assertEqual(result["score_status"], "insufficient_data")
+        self.assertEqual(result["data_quality"]["metric_coverage"], 0.0)
         self.assertEqual(result["data_quality"]["data_completeness"], 0.0)
-        self.assertEqual(len(result["data_quality"]["missing_metrics"]), 7)
+        self.assertEqual(len(result["data_quality"]["missing_metrics"]), 13)
         self.assertEqual(result["error"], PROVIDER_DATA_UNAVAILABLE)
         self.assertIn(INSUFFICIENT_DATA_WARNING, result["data_quality"]["warnings"])
         self.assertIn(PROVIDER_DATA_UNAVAILABLE, result["data_quality"]["warnings"])
@@ -184,8 +190,10 @@ class ScreenerTest(unittest.TestCase):
 
         self.assertEqual(result["score_status"], "estimated_partial_data")
         self.assertIsNotNone(result["score"])
-        self.assertEqual(result["score"]["data_completeness"], 0.43)
-        self.assertEqual(result["data_quality"]["data_completeness"], 0.43)
+        self.assertEqual(result["score"]["metric_coverage"], 0.54)
+        self.assertEqual(result["score"]["data_completeness"], 0.54)
+        self.assertEqual(result["data_quality"]["metric_coverage"], 0.54)
+        self.assertEqual(result["data_quality"]["data_completeness"], 0.54)
         self.assertIn("net_debt_to_ebitda", result["data_quality"]["missing_metrics"])
         self.assertIn(PARTIAL_DATA_WARNING, result["data_quality"]["warnings"])
 
@@ -197,7 +205,8 @@ class ScreenerTest(unittest.TestCase):
 
         self.assertEqual(result["score_status"], "insufficient_data")
         self.assertIsNone(result["score"])
-        self.assertEqual(result["data_quality"]["data_completeness"], 0.14)
+        self.assertEqual(result["data_quality"]["metric_coverage"], 0.08)
+        self.assertEqual(result["data_quality"]["data_completeness"], 0.08)
         self.assertIn(INSUFFICIENT_DATA_WARNING, result["data_quality"]["warnings"])
 
     def test_financial_company_endpoint_is_marked_unscored(self) -> None:
@@ -211,6 +220,19 @@ class ScreenerTest(unittest.TestCase):
         self.assertIsNone(result["score"])
         self.assertEqual(result["score_status"], "not_scored_financials")
         self.assertIn(FINANCIAL_MODEL_WARNING, result["data_quality"]["warnings"])
+
+    def test_financial_company_with_provider_error_is_still_not_scored_by_generic_model(self) -> None:
+        universe = (Company("BANK.DE", "Bank AG", "Germany", "Xetra", "Financials"),)
+        screener = EquityScreener(data_provider=BrokenProvider(), universe=universe)
+
+        result = screener.get_company_analysis("BANK.DE")
+
+        self.assertEqual(result["company"]["sector"], "Financials")
+        self.assertIsNone(result["score"])
+        self.assertEqual(result["score_status"], "not_scored_financials")
+        self.assertEqual(result["data_quality"]["metric_coverage"], 0.0)
+        self.assertIn(FINANCIAL_MODEL_WARNING, result["data_quality"]["warnings"])
+        self.assertIn(PROVIDER_DATA_UNAVAILABLE, result["data_quality"]["warnings"])
 
     def test_screen_excludes_financial_companies_by_default(self) -> None:
         universe = (

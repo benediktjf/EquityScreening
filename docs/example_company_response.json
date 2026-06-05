@@ -16,22 +16,41 @@
   "metrics": {
     "revenue_growth": 0.08,
     "ebitda_margin": 0.22,
+    "operating_margin": 0.18,
+    "net_margin": 0.11,
     "net_debt_to_ebitda": 1.5,
+    "interest_coverage": 8.0,
     "pe_ratio": 18.0,
     "ev_to_ebitda": 11.0,
+    "ev_to_sales": 3.0,
     "roe": 0.16,
-    "free_cash_flow_yield": 0.045
+    "roic": 0.13,
+    "free_cash_flow_yield": 0.045,
+    "free_cash_flow_margin": 0.09
   },
   "score": {
-    "score": 63.68,
+    "score": 61.84,
     "components": {
       "revenue_growth": 60.0,
       "ebitda_margin": 73.33,
-      "net_debt_to_ebitda": 70.0,
+      "operating_margin": 72.0,
+      "net_margin": 55.0,
+      "roe": 64.0,
+      "roic": 65.0,
       "pe_ratio": 62.96,
       "ev_to_ebitda": 64.29,
-      "roe": 64.0,
-      "free_cash_flow_yield": 45.0
+      "ev_to_sales": 66.67,
+      "net_debt_to_ebitda": 70.0,
+      "interest_coverage": 63.64,
+      "free_cash_flow_yield": 45.0,
+      "free_cash_flow_margin": 45.0
+    },
+    "category_scores": {
+      "growth": 60.0,
+      "profitability": 66.2,
+      "valuation": 64.72,
+      "balance_sheet": 67.0,
+      "cash_flow": 45.0
     },
     "score_breakdown": {
       "revenue_growth": {
@@ -39,56 +58,113 @@
         "component_score": 60.0,
         "weight": 0.15,
         "weighted_contribution": 9.0,
-        "direction": "higher_is_better"
+        "direction": "higher_is_better",
+        "category": "growth"
       },
       "ebitda_margin": {
         "raw_value": 0.22,
         "component_score": 73.33,
-        "weight": 0.15,
-        "weighted_contribution": 11.0,
-        "direction": "higher_is_better"
+        "weight": 0.06,
+        "weighted_contribution": 4.4,
+        "direction": "higher_is_better",
+        "category": "profitability"
       },
-      "net_debt_to_ebitda": {
-        "raw_value": 1.5,
-        "component_score": 70.0,
-        "weight": 0.15,
-        "weighted_contribution": 10.5,
-        "direction": "lower_is_better"
+      "operating_margin": {
+        "raw_value": 0.18,
+        "component_score": 72.0,
+        "weight": 0.06,
+        "weighted_contribution": 4.32,
+        "direction": "higher_is_better",
+        "category": "profitability"
       },
-      "pe_ratio": {
-        "raw_value": 18.0,
-        "component_score": 62.96,
-        "weight": 0.15,
-        "weighted_contribution": 9.44,
-        "direction": "lower_is_better"
-      },
-      "ev_to_ebitda": {
-        "raw_value": 11.0,
-        "component_score": 64.29,
-        "weight": 0.15,
-        "weighted_contribution": 9.64,
-        "direction": "lower_is_better"
+      "net_margin": {
+        "raw_value": 0.11,
+        "component_score": 55.0,
+        "weight": 0.05,
+        "weighted_contribution": 2.75,
+        "direction": "higher_is_better",
+        "category": "profitability"
       },
       "roe": {
         "raw_value": 0.16,
         "component_score": 64.0,
-        "weight": 0.15,
-        "weighted_contribution": 9.6,
-        "direction": "higher_is_better"
+        "weight": 0.06,
+        "weighted_contribution": 3.84,
+        "direction": "higher_is_better",
+        "category": "profitability"
+      },
+      "roic": {
+        "raw_value": 0.13,
+        "component_score": 65.0,
+        "weight": 0.07,
+        "weighted_contribution": 4.55,
+        "direction": "higher_is_better",
+        "category": "profitability"
+      },
+      "pe_ratio": {
+        "raw_value": 18.0,
+        "component_score": 62.96,
+        "weight": 0.08,
+        "weighted_contribution": 5.04,
+        "direction": "lower_is_better",
+        "category": "valuation"
+      },
+      "ev_to_ebitda": {
+        "raw_value": 11.0,
+        "component_score": 64.29,
+        "weight": 0.08,
+        "weighted_contribution": 5.14,
+        "direction": "lower_is_better",
+        "category": "valuation"
+      },
+      "ev_to_sales": {
+        "raw_value": 3.0,
+        "component_score": 66.67,
+        "weight": 0.09,
+        "weighted_contribution": 6.0,
+        "direction": "lower_is_better",
+        "category": "valuation"
+      },
+      "net_debt_to_ebitda": {
+        "raw_value": 1.5,
+        "component_score": 70.0,
+        "weight": 0.08,
+        "weighted_contribution": 5.6,
+        "direction": "lower_is_better",
+        "category": "balance_sheet"
+      },
+      "interest_coverage": {
+        "raw_value": 8.0,
+        "component_score": 63.64,
+        "weight": 0.07,
+        "weighted_contribution": 4.45,
+        "direction": "higher_is_better",
+        "category": "balance_sheet"
       },
       "free_cash_flow_yield": {
         "raw_value": 0.045,
         "component_score": 45.0,
-        "weight": 0.1,
-        "weighted_contribution": 4.5,
-        "direction": "higher_is_better"
+        "weight": 0.08,
+        "weighted_contribution": 3.6,
+        "direction": "higher_is_better",
+        "category": "cash_flow"
+      },
+      "free_cash_flow_margin": {
+        "raw_value": 0.09,
+        "component_score": 45.0,
+        "weight": 0.07,
+        "weighted_contribution": 3.15,
+        "direction": "higher_is_better",
+        "category": "cash_flow"
       }
     },
+    "metric_coverage": 1.0,
     "data_completeness": 1.0
   },
   "score_status": "scored",
   "data_quality": {
     "missing_metrics": [],
+    "metric_coverage": 1.0,
     "data_completeness": 1.0,
     "warnings": []
   }

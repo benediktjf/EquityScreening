@@ -44,46 +44,52 @@ The code separates data retrieval, metric calculation, scoring, and delivery. Th
 
 ## Metrics
 
-The screener calculates:
+The generic non-financial model uses 13 metrics grouped into five categories:
 
-- revenue growth
-- EBITDA margin
-- net debt / EBITDA
-- P/E
-- EV/EBITDA
-- ROE
-- free cash flow yield
+- Growth: revenue growth
+- Profitability: EBITDA margin, operating margin, net margin, ROE, ROIC
+- Valuation: P/E, EV/EBITDA, EV/Sales
+- Balance sheet: net debt / EBITDA, interest coverage
+- Cash flow: free cash flow yield, free cash flow margin
 
 If a metric cannot be calculated from available data, the value is returned as `null`.
 
 ## Scoring Methodology
 
-For non-financial companies, each metric is converted into a 0-100 component score and combined with fixed weights:
+For non-financial companies, each metric is converted into a 0-100 component score and combined with fixed weights. The category scores are weighted averages of the metric component scores inside each category.
 
-| Metric | Weight | Direction | Heuristic Range |
-| --- | ---: | --- | --- |
-| Revenue growth | 15% | Higher is better | -10% to 20% |
-| EBITDA margin | 15% | Higher is better | 0% to 30% |
-| Net debt / EBITDA | 15% | Lower is better | 0x to 5x |
-| P/E | 15% | Lower is better | 8x to 35x |
-| EV/EBITDA | 15% | Lower is better | 6x to 20x |
-| ROE | 15% | Higher is better | 0% to 25% |
-| Free cash flow yield | 10% | Higher is better | 0% to 10% |
+| Category | Metric | Weight | Direction | Heuristic Range |
+| --- | --- | ---: | --- | --- |
+| Growth | Revenue growth | 15% | Higher is better | -10% to 20% |
+| Profitability | EBITDA margin | 6% | Higher is better | 0% to 30% |
+| Profitability | Operating margin | 6% | Higher is better | 0% to 25% |
+| Profitability | Net margin | 5% | Higher is better | 0% to 20% |
+| Profitability | ROE | 6% | Higher is better | 0% to 25% |
+| Profitability | ROIC | 7% | Higher is better | 0% to 20% |
+| Valuation | P/E | 8% | Lower is better | 8x to 35x |
+| Valuation | EV/EBITDA | 8% | Lower is better | 6x to 20x |
+| Valuation | EV/Sales | 9% | Lower is better | 0.5x to 8x |
+| Balance sheet | Net debt / EBITDA | 8% | Lower is better | 0x to 5x |
+| Balance sheet | Interest coverage | 7% | Higher is better | 1x to 12x |
+| Cash flow | Free cash flow yield | 8% | Higher is better | 0% to 10% |
+| Cash flow | Free cash flow margin | 7% | Higher is better | 0% to 20% |
 
 The ranges are heuristic demo ranges chosen to make companies comparable inside this small universe. They are not investment-grade valuation bands and should not be interpreted as buy/sell thresholds.
 
-Missing metrics receive a neutral component score of `50` during calculation, but the final `score_status` determines how the result should be interpreted. Companies with too little data are not shown as normal ranked results.
+`metric_coverage` measures how many of the model's scoring metrics are available. It is not a measure of full company-data completeness in `yfinance`. The older field name `data_completeness` is still returned as a compatibility alias.
 
-The API returns a `score_breakdown` for each metric. It includes the raw metric value, the normalized component score, the metric weight, the weighted contribution, and whether higher or lower values are preferred. The final `score` is the rounded sum of the displayed weighted contributions.
+Missing metrics receive a neutral component score of `50` during calculation, but the final `score_status` determines how the result should be interpreted. Companies with too little model coverage are not shown as normal ranked results.
 
-| `data_completeness` | `score_status` | Default `/screen` behavior |
+The API returns a `score_breakdown` for each metric. It includes the raw metric value, the normalized component score, the metric weight, the weighted contribution, the scoring direction, and the category. The final `score` is the rounded sum of the displayed weighted contributions.
+
+| `metric_coverage` | `score_status` | Default `/screen` behavior |
 | ---: | --- | --- |
 | `>= 0.75` | `scored` | Included |
 | `>= 0.40` and `< 0.75` | `estimated_partial_data` | Included, visibly marked |
 | `< 0.40` | `insufficient_data` | Excluded unless `include_unscored=true`; provider failures may appear as unscored diagnostics |
 | Financial sector | `not_scored_financials` | Excluded unless `include_unscored=true` |
 
-Financial companies are not scored by this model because bank and insurance analysis requires sector-specific metrics.
+Financial companies are excluded from the generic model because bank and insurance analysis requires sector-specific metrics.
 
 The deterministic example response in [docs/example_company_response.json](docs/example_company_response.json) is generated from fixed sample metrics by:
 
@@ -91,33 +97,45 @@ The deterministic example response in [docs/example_company_response.json](docs/
 python3 scripts/generate_example_response.py
 ```
 
-Generated score block:
+Generated score block excerpt:
 
 ```json
 {
   "score": {
-    "score": 63.68,
+    "score": 61.84,
+    "category_scores": {
+      "growth": 60.0,
+      "profitability": 66.2,
+      "valuation": 64.72,
+      "balance_sheet": 67.0,
+      "cash_flow": 45.0
+    },
     "score_breakdown": {
       "revenue_growth": {
         "raw_value": 0.08,
         "component_score": 60.0,
         "weight": 0.15,
         "weighted_contribution": 9.0,
-        "direction": "higher_is_better"
+        "direction": "higher_is_better",
+        "category": "growth"
       },
       "pe_ratio": {
         "raw_value": 18.0,
         "component_score": 62.96,
-        "weight": 0.15,
-        "weighted_contribution": 9.44,
-        "direction": "lower_is_better"
+        "weight": 0.08,
+        "weighted_contribution": 5.04,
+        "direction": "lower_is_better",
+        "category": "valuation"
       }
     },
+    "metric_coverage": 1.0,
     "data_completeness": 1.0
   },
   "score_status": "scored",
   "data_quality": {
     "missing_metrics": [],
+    "metric_coverage": 1.0,
+    "data_completeness": 1.0,
     "warnings": []
   }
 }
@@ -131,7 +149,7 @@ Financial company score block:
   "score_status": "not_scored_financials",
   "data_quality": {
     "warnings": [
-      "Financial companies are not scored by the default model because bank/insurance analysis requires sector-specific metrics."
+      "Financial companies are excluded from the generic model because bank and insurance analysis requires sector-specific metrics."
     ]
   }
 }
@@ -145,13 +163,20 @@ Insufficient-data score block:
   "score_status": "insufficient_data",
   "data_quality": {
     "missing_metrics": [
+      "operating_margin",
+      "net_margin",
       "ebitda_margin",
       "net_debt_to_ebitda",
-      "pe_ratio"
+      "interest_coverage",
+      "pe_ratio",
+      "ev_to_ebitda",
+      "roe",
+      "roic"
     ],
-    "data_completeness": 0.29,
+    "metric_coverage": 0.31,
+    "data_completeness": 0.31,
     "warnings": [
-      "Data completeness is below 0.40; company is not included in ranked results by default."
+      "Metric coverage is below 0.40; company is not included in ranked results by default."
     ]
   }
 }
@@ -165,7 +190,7 @@ Insufficient-data score block:
 - missing statements become empty data frames
 - missing financial rows become `null` metrics
 - duplicate statement rows and non-numeric cells are tolerated
-- provider failures return a stable `insufficient_data` response with `Provider data unavailable` in `data_quality.warnings`
+- provider failures return a stable response with `Provider data unavailable` in `data_quality.warnings`
 
 ## How To Run
 
@@ -204,7 +229,7 @@ Sort screen results:
 
 ```bash
 python3 run_screen.py --sort score
-python3 run_screen.py --sort data_completeness
+python3 run_screen.py --sort metric_coverage
 ```
 
 Include unscored financial or insufficient-data companies in CLI output:
@@ -260,11 +285,11 @@ curl "http://127.0.0.1:8000/screen?include_unscored=true"
 CLI table shape. Live values depend on `yfinance`, so precise scores are not hard-coded here:
 
 ```text
-ticker    name          sector       score     score_status             data_completeness  missing_metrics_count  warning_count
---------  ------------  -----------  --------  -----------------------  -----------------  ---------------------  -------------
-<TICKER>  <Name>        Technology   <score>   scored                   1.00               0                      0
-<TICKER>  <Name>        Financials   unscored  not_scored_financials    0.86               <count>                1
-<TICKER>  <Name>        Industrials  unscored  insufficient_data        0.29               <count>                2
+ticker    name          sector       score     score_status             metric_coverage  missing_metrics_count  warning_count
+--------  ------------  -----------  --------  -----------------------  ---------------  ---------------------  -------------
+<TICKER>  <Name>        Technology   <score>   scored                   1.00             0                      0
+<TICKER>  <Name>        Financials   unscored  not_scored_financials    0.86             <count>                1
+<TICKER>  <Name>        Industrials  unscored  insufficient_data        0.29             <count>                2
 ```
 
 Generated single-company API response excerpt:
@@ -288,35 +313,53 @@ Generated single-company API response excerpt:
   "metrics": {
     "revenue_growth": 0.08,
     "ebitda_margin": 0.22,
+    "operating_margin": 0.18,
+    "net_margin": 0.11,
     "net_debt_to_ebitda": 1.5,
+    "interest_coverage": 8.0,
     "pe_ratio": 18.0,
     "ev_to_ebitda": 11.0,
+    "ev_to_sales": 3.0,
     "roe": 0.16,
-    "free_cash_flow_yield": 0.045
+    "roic": 0.13,
+    "free_cash_flow_yield": 0.045,
+    "free_cash_flow_margin": 0.09
   },
   "score": {
-    "score": 63.68,
+    "score": 61.84,
+    "category_scores": {
+      "growth": 60.0,
+      "profitability": 66.2,
+      "valuation": 64.72,
+      "balance_sheet": 67.0,
+      "cash_flow": 45.0
+    },
     "score_breakdown": {
       "revenue_growth": {
         "raw_value": 0.08,
         "component_score": 60.0,
         "weight": 0.15,
         "weighted_contribution": 9.0,
-        "direction": "higher_is_better"
+        "direction": "higher_is_better",
+        "category": "growth"
       },
       "pe_ratio": {
         "raw_value": 18.0,
         "component_score": 62.96,
-        "weight": 0.15,
-        "weighted_contribution": 9.44,
-        "direction": "lower_is_better"
+        "weight": 0.08,
+        "weighted_contribution": 5.04,
+        "direction": "lower_is_better",
+        "category": "valuation"
       }
     },
+    "metric_coverage": 1.0,
     "data_completeness": 1.0
   },
   "score_status": "scored",
   "data_quality": {
     "missing_metrics": [],
+    "metric_coverage": 1.0,
+    "data_completeness": 1.0,
     "warnings": []
   }
 }
@@ -340,10 +383,11 @@ Store fresh captures in `docs/screenshots/`.
 
 - `yfinance` data quality and availability vary by ticker, exchange, and statement field.
 - The scoring model is a simplified heuristic for non-financial companies with sufficient data, not a valuation model.
+- `metric_coverage` only measures availability of the model's scoring metrics, not full financial-data completeness.
 - The universe is fixed at 20 European companies.
 - The project does not include backtesting.
 - Scores are not sector-relative yet.
-- Financial companies are not scored by default. Bank and insurer analysis requires metrics such as capital ratios, net interest margin, combined ratio, or book-value-based valuation, which are not implemented yet.
+- Financial companies are excluded from the generic model. Bank and insurer analysis requires metrics such as capital ratios, net interest margin, combined ratio, or book-value-based valuation, which are not implemented yet.
 
 ## Roadmap
 
@@ -351,7 +395,6 @@ Store fresh captures in `docs/screenshots/`.
 - Add sector-relative scoring
 - Add cached data snapshots for reproducible demos
 - Add financial-sector-specific metrics
-- Add CI workflow for tests
 
 ## Disclaimer
 

@@ -12,7 +12,7 @@ from typing import Any
 from euro_equity_intelligence.screener import EquityScreener
 
 
-SORT_OPTIONS = ("score", "data_completeness")
+SORT_OPTIONS = ("score", "metric_coverage", "data_completeness")
 
 
 def main(argv: Sequence[str] | None = None, screener: EquityScreener | None = None) -> None:
@@ -78,7 +78,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--sort",
         choices=SORT_OPTIONS,
         default="score",
-        help="Sort screen output descending by final score or data completeness.",
+        help="Sort screen output descending by final score or model metric coverage.",
     )
     parser.add_argument(
         "--include-unscored",
@@ -111,7 +111,7 @@ def _format_results(results: list[dict]) -> str:
         "sector",
         "score",
         "score_status",
-        "data_completeness",
+        "metric_coverage",
         "missing_metrics_count",
         "warning_count",
     ]
@@ -126,7 +126,7 @@ def _format_results(results: list[dict]) -> str:
                 _text(company.get("sector")),
                 _score_text(result),
                 _text(result.get("score_status")),
-                _number_text(data_quality.get("data_completeness")),
+                _number_text(_metric_coverage(data_quality)),
                 str(len(data_quality.get("missing_metrics") or [])),
                 str(len(data_quality.get("warnings") or [])),
             ]
@@ -169,6 +169,10 @@ def _score_text(result: dict) -> str:
     if not score or score.get("score") is None:
         return "unscored"
     return _number_text(score.get("score"))
+
+
+def _metric_coverage(data_quality: dict) -> Any:
+    return data_quality.get("metric_coverage", data_quality.get("data_completeness"))
 
 
 def _number_text(value: Any) -> str:

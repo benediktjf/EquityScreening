@@ -17,11 +17,17 @@ from euro_equity_intelligence.scoring import score_metrics
 SAMPLE_METRICS = EquityMetrics(
     revenue_growth=0.08,
     ebitda_margin=0.22,
+    operating_margin=0.18,
+    net_margin=0.11,
     net_debt_to_ebitda=1.5,
+    interest_coverage=8.0,
     pe_ratio=18.0,
     ev_to_ebitda=11.0,
+    ev_to_sales=3.0,
     roe=0.16,
+    roic=0.13,
     free_cash_flow_yield=0.045,
+    free_cash_flow_margin=0.09,
 )
 
 
@@ -49,6 +55,7 @@ def build_example_response() -> dict[str, Any]:
         "score_status": "scored",
         "data_quality": {
             "missing_metrics": missing_metrics,
+            "metric_coverage": score.metric_coverage,
             "data_completeness": score.data_completeness,
             "warnings": [],
         },

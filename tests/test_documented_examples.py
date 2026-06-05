@@ -27,6 +27,7 @@ class DocumentedExamplesTest(unittest.TestCase):
         expected_score = score_metrics(metrics)
 
         self.assertEqual(example["score"], expected_score.to_dict())
+        self.assertEqual(example["data_quality"]["metric_coverage"], expected_score.metric_coverage)
         self.assertEqual(example["data_quality"]["data_completeness"], expected_score.data_completeness)
         self.assertEqual(example["score_status"], "scored")
 
