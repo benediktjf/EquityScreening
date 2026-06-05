@@ -78,7 +78,7 @@ The API returns a `score_breakdown` for each metric. It includes the raw metric 
 | ---: | --- | --- |
 | `>= 0.75` | `scored` | Included |
 | `>= 0.40` and `< 0.75` | `estimated_partial_data` | Included, visibly marked |
-| `< 0.40` | `insufficient_data` | Excluded unless `include_unscored=true` |
+| `< 0.40` | `insufficient_data` | Excluded unless `include_unscored=true`; provider failures may appear as unscored diagnostics |
 | Financial sector | `not_scored_financials` | Excluded unless `include_unscored=true` |
 
 Financial companies are not scored by this model because bank and insurance analysis requires sector-specific metrics.
@@ -163,7 +163,7 @@ Insufficient-data score block:
 - missing statements become empty data frames
 - missing financial rows become `null` metrics
 - duplicate statement rows and non-numeric cells are tolerated
-- provider failures return a stable response with neutral scoring and `data_quality.warnings`
+- provider failures return a stable `insufficient_data` response with `Provider data unavailable` in `data_quality.warnings`
 
 ## How To Run
 
@@ -196,6 +196,13 @@ Filter screen results:
 
 ```bash
 python3 run_screen.py --min-score 70 --limit 10
+```
+
+Sort screen results:
+
+```bash
+python3 run_screen.py --sort score
+python3 run_screen.py --sort data_completeness
 ```
 
 Include unscored financial or insufficient-data companies in CLI output:
@@ -251,9 +258,11 @@ curl "http://127.0.0.1:8000/screen?include_unscored=true"
 CLI table shape. Live values depend on `yfinance`, so precise scores are not hard-coded here:
 
 ```text
-ticker  name          country      score  status  data revenue_growth ebitda_margin net_debt_ebitda    pe ev_ebitda    roe fcf_yield error
-<TICKER> <Name>        <Country>    <score> scored                  1.00          <pct>         <pct>            <num> <num>     <num>  <pct>     <pct> None
-<TICKER> <Name>        <Country>    <score> estimated_partial_data  0.57          <pct>         None             <num> <num>     None   <pct>     None  None
+ticker    name          sector       score     score_status             data_completeness  missing_metrics_count  warning_count
+--------  ------------  -----------  --------  -----------------------  -----------------  ---------------------  -------------
+<TICKER>  <Name>        Technology   <score>   scored                   1.00               0                      0
+<TICKER>  <Name>        Financials   unscored  not_scored_financials    0.86               <count>                1
+<TICKER>  <Name>        Industrials  unscored  insufficient_data        0.29               <count>                2
 ```
 
 Generated single-company API response excerpt:

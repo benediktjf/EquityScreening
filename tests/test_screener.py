@@ -4,7 +4,7 @@ import unittest
 
 import pandas as pd
 
-from euro_equity_intelligence.data_provider import FinancialData
+from euro_equity_intelligence.data_provider import PROVIDER_DATA_UNAVAILABLE, FinancialData
 from euro_equity_intelligence.screener import (
     FINANCIAL_MODEL_WARNING,
     INSUFFICIENT_DATA_WARNING,
@@ -82,6 +82,28 @@ class ScreenerTest(unittest.TestCase):
         self.assertEqual([result["company"]["ticker"] for result in results], ["GOOD.DE", "WEAK.DE"])
         self.assertGreater(results[0]["score"]["score"], results[1]["score"]["score"])
 
+    def test_screener_can_sort_by_data_completeness(self) -> None:
+        universe = (
+            Company("PART.DE", "Partial AG", "Germany", "Xetra", "Industrials"),
+            Company("GOOD.DE", "Good AG", "Germany", "Xetra", "Industrials"),
+        )
+
+        class MixedProvider:
+            def get_company_data(self, ticker: str) -> FinancialData:
+                if ticker == "PART.DE":
+                    return PartialProvider().get_company_data(ticker)
+                return FakeProvider().get_company_data(ticker)
+
+        screener = EquityScreener(data_provider=MixedProvider(), universe=universe)
+
+        results = screener.screen(sort_by="data_completeness")
+
+        self.assertEqual([result["company"]["ticker"] for result in results], ["GOOD.DE", "PART.DE"])
+        self.assertGreater(
+            results[0]["data_quality"]["data_completeness"],
+            results[1]["data_quality"]["data_completeness"],
+        )
+
     def test_screener_can_analyze_single_company(self) -> None:
         universe = (Company("GOOD.DE", "Good AG", "Germany", "Xetra", "Industrials"),)
         screener = EquityScreener(data_provider=FakeProvider(), universe=universe)
@@ -120,9 +142,39 @@ class ScreenerTest(unittest.TestCase):
         self.assertEqual(result["score_status"], "insufficient_data")
         self.assertEqual(result["data_quality"]["data_completeness"], 0.0)
         self.assertEqual(len(result["data_quality"]["missing_metrics"]), 7)
-        self.assertIn("financial statements unavailable", result["error"])
+        self.assertEqual(result["error"], PROVIDER_DATA_UNAVAILABLE)
         self.assertIn(INSUFFICIENT_DATA_WARNING, result["data_quality"]["warnings"])
-        self.assertTrue(any("Data provider error" in warning for warning in result["data_quality"]["warnings"]))
+        self.assertIn(PROVIDER_DATA_UNAVAILABLE, result["data_quality"]["warnings"])
+        self.assertFalse(any("financial statements unavailable" in warning for warning in result["data_quality"]["warnings"]))
+
+    def test_screen_includes_provider_failures_as_diagnostic_rows_by_default(self) -> None:
+        universe = (
+            Company("GOOD.DE", "Good AG", "Germany", "Xetra", "Industrials"),
+            Company("BROKEN.DE", "Broken AG", "Germany", "Xetra", "Industrials"),
+        )
+
+        class MixedProvider:
+            def get_company_data(self, ticker: str) -> FinancialData:
+                if ticker == "BROKEN.DE":
+                    return BrokenProvider().get_company_data(ticker)
+                return FakeProvider().get_company_data(ticker)
+
+        screener = EquityScreener(data_provider=MixedProvider(), universe=universe)
+
+        results = screener.screen()
+
+        self.assertEqual([result["company"]["ticker"] for result in results], ["GOOD.DE", "BROKEN.DE"])
+        self.assertEqual(results[1]["score_status"], "insufficient_data")
+        self.assertIsNone(results[1]["score"])
+        self.assertEqual(results[1]["error"], PROVIDER_DATA_UNAVAILABLE)
+
+    def test_min_score_filter_excludes_provider_failure_diagnostics(self) -> None:
+        universe = (Company("BROKEN.DE", "Broken AG", "Germany", "Xetra", "Industrials"),)
+        screener = EquityScreener(data_provider=BrokenProvider(), universe=universe)
+
+        results = screener.screen(min_score=70)
+
+        self.assertEqual(results, [])
 
     def test_partial_data_company_is_estimated_but_visible(self) -> None:
         universe = (Company("PART.DE", "Partial AG", "Germany", "Xetra", "Industrials"),)

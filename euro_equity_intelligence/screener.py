@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from .data_provider import DataProvider, YFinanceDataProvider
+from .data_provider import PROVIDER_DATA_UNAVAILABLE, DataProvider, YFinanceDataProvider
 from .metrics import EquityMetrics, calculate_metrics, missing_metric_names
 from .scoring import score_metrics
 from .universe import EUROPEAN_UNIVERSE, Company, get_company, list_companies
@@ -46,8 +46,8 @@ class EquityScreener:
 
         try:
             data = self._data_provider.get_company_data(company.ticker)
-        except Exception as exc:
-            return _unavailable_analysis(company, str(exc))
+        except Exception:
+            return _unavailable_analysis(company)
 
         metrics = calculate_metrics(data)
         if company.is_financial():
@@ -61,23 +61,28 @@ class EquityScreener:
         limit: int | None = None,
         min_score: float | None = None,
         include_unscored: bool = False,
+        sort_by: str = "score",
     ) -> list[dict[str, Any]]:
-        """Rank the universe by score, optionally filtering by a minimum score."""
+        """Rank the universe by score or data completeness."""
+        if sort_by not in {"score", "data_completeness"}:
+            raise ValueError("sort_by must be 'score' or 'data_completeness'")
+
         results = []
         for company in self._universe:
             try:
                 analysis = self.get_company_analysis(company.ticker)
-            except Exception as exc:
-                analysis = _unavailable_analysis(company, str(exc))
+            except Exception:
+                analysis = _unavailable_analysis(company)
             score_value = analysis["score"]["score"] if analysis.get("score") else None
+            has_provider_error = analysis.get("error") == PROVIDER_DATA_UNAVAILABLE
             if score_value is None:
-                if not include_unscored:
+                if not include_unscored and not (has_provider_error and min_score is None):
                     continue
             elif min_score is not None and score_value < min_score:
                 continue
             results.append(analysis)
 
-        results.sort(key=lambda item: item["score"]["score"] if item.get("score") else -1, reverse=True)
+        results.sort(key=lambda item: _screen_sort_key(item, sort_by), reverse=True)
         return results[:limit] if limit is not None else results
 
     def _find_company(self, ticker: str) -> Company:
@@ -95,6 +100,13 @@ class EquityScreener:
 def default_companies() -> list[dict[str, str]]:
     """Return the default 20-company European universe."""
     return list_companies()
+
+
+def _screen_sort_key(analysis: dict[str, Any], sort_by: str) -> float:
+    if sort_by == "score":
+        return analysis["score"]["score"] if analysis.get("score") else -1.0
+    data_quality = analysis.get("data_quality") or {}
+    return data_quality.get("data_completeness") or -1.0
 
 
 def _market_snapshot(data) -> dict[str, Any]:
@@ -126,7 +138,7 @@ def _data_quality(
     data_completeness = round((len(metrics.to_dict()) - len(missing_metrics)) / len(metrics.to_dict()), 2)
     warnings = list(extra_warnings or [])
     if source_error:
-        warnings.append(f"Data provider error: {source_error}")
+        warnings.append(source_error)
     if missing_metrics:
         warnings.append("Some metrics could not be calculated from available yfinance data.")
     if len(missing_metrics) == len(metrics.to_dict()):
@@ -170,7 +182,7 @@ def _scored_analysis(
     }
 
 
-def _unavailable_analysis(company: Company, error: str) -> dict[str, Any]:
+def _unavailable_analysis(company: Company) -> dict[str, Any]:
     metrics = EquityMetrics(
         revenue_growth=None,
         ebitda_margin=None,
@@ -180,20 +192,9 @@ def _unavailable_analysis(company: Company, error: str) -> dict[str, Any]:
         roe=None,
         free_cash_flow_yield=None,
     )
-    if company.is_financial():
-        return {
-            "company": company.to_dict(),
-            "market": {},
-            "metrics": metrics.to_dict(),
-            "score": None,
-            "score_status": SCORE_STATUS_FINANCIALS,
-            "data_quality": _data_quality(metrics, source_error=error, extra_warnings=[FINANCIAL_MODEL_WARNING]),
-            "error": error,
-        }
-
     score = score_metrics(metrics)
-    analysis = _scored_analysis(company, {}, metrics, score, source_error=error)
-    analysis["error"] = error
+    analysis = _scored_analysis(company, {}, metrics, score, source_error=PROVIDER_DATA_UNAVAILABLE)
+    analysis["error"] = PROVIDER_DATA_UNAVAILABLE
     return analysis
 
 
